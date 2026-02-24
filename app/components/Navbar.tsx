@@ -2,12 +2,16 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { SignInButton, SignUpButton } from "@clerk/nextjs";
+import { SignInButton } from "@clerk/nextjs";
 import { motion, useScroll, useMotionValueEvent } from "framer-motion";
+import { usePathname } from "next/navigation";
 
 export default function Navbar() {
   const { scrollY } = useScroll();
   const [isHidden, setIsHidden] = useState(false);
+
+  const pathname = usePathname();
+
   useMotionValueEvent(scrollY, "change", (latest) => {
     const previous = scrollY.getPrevious() || 0;
     if (latest > previous && latest > 50) {
@@ -27,6 +31,10 @@ export default function Navbar() {
       elem.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
+
+  if (pathname !== "/" && pathname !== "/sign-up") {
+    return null;
+  }
 
   return (
     <div className="fixed top-4 left-0 w-full z-[100] flex justify-center px-4 pointer-events-none">
@@ -51,13 +59,15 @@ export default function Navbar() {
         </Link>
 
         <div className="flex items-center space-x-3 md:space-x-4">
-          <a
-            href="#features"
-            onClick={(e) => handleScrollClick(e, "features")}
-            className="text-sm font-bold text-zinc-500 hover:text-black transition-colors cursor-pointer mr-2"
-          >
-            Features
-          </a>
+          {pathname === "/" && (
+            <a
+              href="#features"
+              onClick={(e) => handleScrollClick(e, "features")}
+              className="text-sm font-bold text-zinc-500 hover:text-black transition-colors cursor-pointer mr-2"
+            >
+              Features
+            </a>
+          )}
 
           <SignInButton mode="modal">
             <button className="text-sm font-bold text-zinc-600 hover:text-black transition-colors px-2 cursor-pointer">

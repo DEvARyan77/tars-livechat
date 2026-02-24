@@ -3,7 +3,19 @@ import LandingPageBottom from "./components/LandingPageBottom";
 
 export default function Home() {
   return (
-    <main className="relative block bg-[#f8f7f4]">
+    <main
+      className="relative block bg-[#f8f7f4]"
+      style={{
+        backgroundColor: "rgb(252, 251, 242)",
+        backgroundImage: `
+             radial-gradient(circle at right, #EFEFE6 0%, transparent 900vw),
+             repeating-linear-gradient(0deg, transparent, transparent 77px, rgba(0,0,0,0.5) 80px),
+             repeating-linear-gradient(90deg, transparent, transparent 77px, rgba(0,0,0,0.5) 80px)
+           `,
+        backgroundBlendMode: "normal",
+        backgroundAttachment: "fixed",
+      }}
+    >
       <div className="left-0 w-full">
         <LandingPageTop />
       </div>
