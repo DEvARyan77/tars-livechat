@@ -142,7 +142,7 @@ export default function AllChats({
 
                 {msg.reactions && msg.reactions.length > 0 && (
                   <div
-                    className={`absolute bottom-4 ${isMe ? "right-2" : "left-2"} z-20`}
+                    className={`absolute bottom-1/5 ${isMe ? "right-4" : "left-4"} z-20`}
                   >
                     <button
                       onClick={(e) => {
@@ -151,17 +151,25 @@ export default function AllChats({
                           activeEmojiMenu === msg._id ? null : msg._id,
                         );
                       }}
-                      className="flex items-center gap-0.5 bg-white border-2 border-black px-1.5 py-0.5 rounded-full shadow-[2px_2px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all"
+                      className="flex items-center h-fit gap-1 bg-white border-2 border-black pl-1/2 pr-1 py-0.5 rounded-full active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all cursor-pointer"
                     >
-                      <div className="flex -space-x-1">
-                        {msg.reactions.map(({ emoji }: { emoji: string }) => (
-                          <span
-                            key={emoji}
-                            className="text-[12px] leading-none"
-                          >
-                            {emoji}
+                      <div className="flex -space-x-1 items-center">
+                        {msg.reactions
+                          .slice(0, 3)
+                          .map(({ emoji }: { emoji: string }) => (
+                            <span
+                              key={emoji}
+                              className="text-[14px] leading-none bg-white rounded-full"
+                            >
+                              {emoji}
+                            </span>
+                          ))}
+
+                        {msg.reactions.length > 3 && (
+                          <span className="text-[11px] font-black font-sans ml-1 text-black/80">
+                            +{msg.reactions.length - 3}
                           </span>
-                        ))}
+                        )}
                       </div>
                     </button>
                   </div>
