@@ -1,4 +1,18 @@
+"use client";
+
 import { Search, X } from "lucide-react";
+
+// 1. Define the Tab Type (Must match SidebarMenu exactly)
+type TabType = "chats" | "directory" | "status" | "calls";
+
+// 2. Define the Props Interface
+interface SidebarSearchProps {
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  isSearchFocused: boolean;
+  setIsSearchFocused: (focused: boolean) => void;
+  activeTab: TabType;
+}
 
 export default function SidebarSearch({
   searchQuery,
@@ -6,7 +20,7 @@ export default function SidebarSearch({
   isSearchFocused,
   setIsSearchFocused,
   activeTab,
-}) {
+}: SidebarSearchProps) {
   return (
     <div className="p-4 border-b">
       <h2 className="font-black text-2xl mb-4 text-black tracking-tight capitalize">

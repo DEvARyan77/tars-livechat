@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { UserCircle, Clock } from "lucide-react";
+import { UserCircle, Clock, Users } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { Id } from "@/convex/_generated/dataModel";
 
@@ -14,6 +14,9 @@ interface User {
 
 interface Conversation {
   _id: string;
+  isGroup?: boolean; // Added
+  groupName?: string | null; // Added
+  memberCount?: number | null; // Added
   otherUser: User | null;
   unreadCount: number;
   lastMessage: {
@@ -155,62 +158,87 @@ export default function SidebarUsers({
                   Search to start one!
                 </p>
               ) : (
-                conversations.map((conv) => (
-                  <li key={conv._id}>
-                    <Link
-                      href={`/users/${conv.otherUser?.clerkId}`}
-                      className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
-                        pathname === `/users/${conv.otherUser?.clerkId}`
-                          ? "bg-zinc-100 border border-zinc-200"
-                          : "hover:bg-zinc-50 border border-transparent"
-                      }`}
-                    >
-                      {conv.otherUser?.avatarUrl ? (
-                        <img
-                          src={conv.otherUser.avatarUrl}
-                          alt="Avatar"
-                          className="w-12 h-12 rounded-full border border-zinc-200 object-cover"
-                        />
-                      ) : (
-                        <UserCircle className="w-12 h-12 text-zinc-400" />
-                      )}
-                      <div className="flex-1 overflow-hidden">
-                        <div className="flex justify-between items-center">
-                          <div className="font-bold text-black truncate">
-                            {conv.otherUser?.name}
-                          </div>
-                          {conv.unreadCount > 0 && (
-                            <div className="bg-[#ffcf00] text-black text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-black">
-                              {conv.unreadCount > 100
-                                ? "100+"
-                                : conv.unreadCount}
+                conversations.map((conv) => {
+                  // Determine Link destination based on type
+                  const chatHref = conv.isGroup
+                    ? `/users/${conv._id}`
+                    : `/users/${conv.otherUser?.clerkId}`;
+
+                  return (
+                    <li key={conv._id}>
+                      <Link
+                        href={chatHref}
+                        className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
+                          pathname === chatHref
+                            ? "bg-zinc-100 border border-zinc-200"
+                            : "hover:bg-zinc-50 border border-transparent"
+                        }`}
+                      >
+                        {/* Avatar Logic */}
+                        <div className="relative flex-shrink-0">
+                          {conv.isGroup ? (
+                            <div className="w-12 h-12 bg-zinc-800 rounded-full flex items-center justify-center border border-zinc-200">
+                              <Users className="w-6 h-6 text-[#ffcf00]" />
                             </div>
+                          ) : conv.otherUser?.avatarUrl ? (
+                            <img
+                              src={conv.otherUser.avatarUrl}
+                              alt="Avatar"
+                              className="w-12 h-12 rounded-full border border-zinc-200 object-cover"
+                            />
+                          ) : (
+                            <UserCircle className="w-12 h-12 text-zinc-400" />
                           )}
                         </div>
-                        <div className="flex justify-between items-center">
-                          <div
-                            className={`text-sm truncate ${
-                              conv.lastMessage?.deleted
-                                ? "italic text-zinc-400"
-                                : "font-semibold text-zinc-500"
-                            }`}
-                          >
-                            {conv.lastMessage
-                              ? conv.lastMessage.deleted
-                                ? "This message was deleted"
-                                : conv.lastMessage.content
-                              : "No Conversation Yet"}
+
+                        <div className="flex-1 overflow-hidden">
+                          <div className="flex justify-between items-center">
+                            <h3 className="font-bold text-black truncate">
+                              {conv.isGroup
+                                ? conv.groupName
+                                : conv.otherUser?.name}
+                            </h3>
+                            {conv.unreadCount > 0 && (
+                              <div className="bg-[#ffcf00] text-black text-[10px] font-black min-w-[20px] h-5 px-1 rounded-full flex items-center justify-center border-2 border-black flex-shrink-0">
+                                {conv.unreadCount > 99
+                                  ? "99+"
+                                  : conv.unreadCount}
+                              </div>
+                            )}
                           </div>
-                          {conv.lastMessage && (
-                            <span className="text-[10px] text-zinc-400 font-bold whitespace-nowrap pt-1">
-                              {formatTimestamp(conv.lastMessage.timestamp)}
-                            </span>
-                          )}
+
+                          <div className="flex justify-between items-center gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {conv.isGroup && (
+                                <span className="text-[9px] bg-zinc-200 px-1 py-0.5 rounded font-black uppercase flex-shrink-0">
+                                  {conv.memberCount} Members
+                                </span>
+                              )}
+                              <p
+                                className={`text-sm truncate ${
+                                  conv.lastMessage?.deleted
+                                    ? "italic text-zinc-400"
+                                    : "font-semibold text-zinc-500"
+                                }`}
+                              >
+                                {conv.lastMessage
+                                  ? conv.lastMessage.deleted
+                                    ? "This message was deleted"
+                                    : conv.lastMessage.content
+                                  : "No Conversation Yet"}
+                              </p>
+                            </div>
+                            {conv.lastMessage && (
+                              <span className="text-[10px] text-zinc-400 font-bold whitespace-nowrap">
+                                {formatTimestamp(conv.lastMessage.timestamp)}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </Link>
-                  </li>
-                ))
+                      </Link>
+                    </li>
+                  );
+                })
               )}
             </ul>
           )}
@@ -250,6 +278,6 @@ export default function SidebarUsers({
           )}
         </>
       )}
-    </div>
+    </div>  
   );
 }

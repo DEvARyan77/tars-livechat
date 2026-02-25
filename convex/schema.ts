@@ -15,6 +15,9 @@ export default defineSchema({
 
   conversations: defineTable({
     participants: v.array(v.id("users")),
+    isGroup: v.optional(v.boolean()), 
+    name: v.optional(v.string()), 
+    admin: v.optional(v.id("users")),
     lastMessageId: v.optional(v.id("messages")),
     updatedAt: v.number(),
     lastSeen: v.optional(v.record(v.string(), v.number())),
@@ -34,6 +37,8 @@ export default defineSchema({
     timestamp: v.number(),
     deleted: v.optional(v.boolean()),
     hiddenBy: v.optional(v.array(v.id("users"))),
-    reactions: v.optional(v.record(v.string(), v.array(v.id("users")))),
+    reactions: v.optional(
+      v.array(v.object({ emoji: v.string(), users: v.array(v.id("users")) })),
+    ),
   }).index("by_conversation", ["conversationId"]),
 });

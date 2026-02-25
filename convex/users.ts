@@ -129,7 +129,7 @@ export const getOnlineStatus = query({
     const user = await ctx.db.get(args.userId);
     if (!user || !user.lastSeen) return { isOnline: false, lastSeen: null };
 
-    const isOnline = Date.now() - user.lastSeen < 120000; 
+    const isOnline = Date.now() - user.lastSeen < 1000; 
     return { isOnline, lastSeen: user.lastSeen };
   },
 });

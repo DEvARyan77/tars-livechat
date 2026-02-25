@@ -34,21 +34,26 @@ export const getUserConversations = query({
 
     return await Promise.all(
       userConvs.map(async (conv) => {
-        const otherParticipantId = conv.participants.find(
-          (id) => id !== args.userId,
-        );
+        let otherUser = null;
 
-        const otherUserDoc = otherParticipantId
-          ? await ctx.db.get(otherParticipantId)
-          : null;
-        const otherUser = otherUserDoc
-          ? {
-              _id: otherUserDoc._id,
-              clerkId: otherUserDoc.clerkId,
-              name: otherUserDoc.name,
-              avatarUrl: otherUserDoc.avatarUrl,
-            }
-          : null;
+        if (!conv.isGroup) {
+          const otherParticipantId = conv.participants.find(
+            (id) => id !== args.userId,
+          );
+
+          const otherUserDoc = otherParticipantId
+            ? await ctx.db.get(otherParticipantId)
+            : null;
+
+          otherUser = otherUserDoc
+            ? {
+                _id: otherUserDoc._id,
+                clerkId: otherUserDoc.clerkId,
+                name: otherUserDoc.name,
+                avatarUrl: otherUserDoc.avatarUrl,
+              }
+            : null;
+        }
 
         const recentMessages = await ctx.db
           .query("messages")
@@ -67,6 +72,7 @@ export const getUserConversations = query({
               deleted: lastMessageDoc.deleted,
             }
           : null;
+
         const lastSeenMap = (conv.lastSeen as Record<string, number>) || {};
         const myLastSeen = lastSeenMap[args.userId] || 0;
 
@@ -80,9 +86,12 @@ export const getUserConversations = query({
         const unreadCount = unreadMessages.filter(
           (msg) => !msg.hiddenBy?.includes(args.userId),
         ).length;
+
         return {
           ...conv,
           otherUser,
+          groupName: conv.name || null,
+          memberCount: conv.participants.length,
           lastMessage,
           unreadCount,
         };
@@ -128,5 +137,23 @@ export const getConversation = query({
   args: { conversationId: v.id("conversations") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.conversationId);
+  },
+});
+
+export const createGroup = mutation({
+  args: {
+    name: v.string(),
+    participantIds: v.array(v.id("users")),
+    adminId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("conversations", {
+      name: args.name,
+      isGroup: true,
+      participants: args.participantIds,
+      admin: args.adminId,
+      updatedAt: Date.now(),
+      lastSeen: { [args.adminId]: Date.now() },
+    });
   },
 });

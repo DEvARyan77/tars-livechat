@@ -9,6 +9,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import SidebarMenu from "./SidebarMenu";
 import SidebarSearch from "./SidebarSearch";
 import SidebarUsers from "./SidebarUsers";
+import CreateGroupModal from "./CreateGroupModal";
 
 export default function ConversationSidebar() {
   const { user } = useUser();
@@ -37,6 +38,7 @@ export default function ConversationSidebar() {
   >("chats");
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
 
   const filteredUsers = (allUsers || [])
     .filter((u) => u.clerkId !== user?.id)
@@ -78,7 +80,7 @@ export default function ConversationSidebar() {
 
   return (
     <div className="flex h-screen bg-white">
-      <SidebarMenu activeTab={activeTab} setActiveTab={setActiveTab} />
+      <SidebarMenu activeTab={activeTab} setActiveTab={setActiveTab} onOpenGroupModal={() => setIsGroupModalOpen(true)}/>
 
       <div className="w-72 lg:w-80 border-r flex flex-col flex-shrink-0">
         <SidebarSearch
@@ -98,6 +100,11 @@ export default function ConversationSidebar() {
           conversations={conversations}
         />
       </div>
+      <CreateGroupModal
+        isOpen={isGroupModalOpen}
+        onClose={() => setIsGroupModalOpen(false)}
+        currentUser={currentUser}
+      />
     </div>
   );
 }

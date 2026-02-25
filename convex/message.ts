@@ -83,18 +83,25 @@ export const toggleReaction = mutation({
   },
   handler: async (ctx, args) => {
     const message = await ctx.db.get(args.messageId);
-    if (!message || message.deleted) return;
+    if (!message) return;
 
-    const reactions = message.reactions || {};
-    const usersWhoReacted = reactions[args.emoji] || [];
+    const reactions = message.reactions || [];
+    const reactionIndex = reactions.findIndex((r) => r.emoji === args.emoji);
 
-    if (usersWhoReacted.includes(args.userId)) {
-      reactions[args.emoji] = usersWhoReacted.filter(
-        (id) => id !== args.userId,
-      );
-      if (reactions[args.emoji].length === 0) delete reactions[args.emoji];
+    if (reactionIndex > -1) {
+      const users = reactions[reactionIndex].users;
+      const userIndex = users.indexOf(args.userId);
+
+      if (userIndex > -1) {
+        users.splice(userIndex, 1);
+      } else {
+        users.push(args.userId);
+      }
+      if (users.length === 0) {
+        reactions.splice(reactionIndex, 1);
+      }
     } else {
-      reactions[args.emoji] = [...usersWhoReacted, args.userId];
+      reactions.push({ emoji: args.emoji, users: [args.userId] });
     }
 
     await ctx.db.patch(args.messageId, { reactions });
