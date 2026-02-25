@@ -4,7 +4,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useUser } from "@clerk/nextjs";
 import { useState, useEffect, useRef } from "react";
-import { SendHorizontal } from "lucide-react";
+import { SendHorizontal, Users } from "lucide-react";
 import { Id } from "@/convex/_generated/dataModel";
 import AllChats from "./AllChats";
 
@@ -19,7 +19,7 @@ export default function ChatArea({ otherUserId }: { otherUserId: string }) {
   const updatePresence = useMutation(api.users.updatePresence);
   const hideMessageFromView = useMutation(api.message.hideMessageFromView);
 
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<Id<"conversations"> | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [showNewMessageButton, setShowNewMessageButton] = useState(false);
@@ -45,14 +45,12 @@ export default function ChatArea({ otherUserId }: { otherUserId: string }) {
 
   const conversation = useQuery(
     api.conversations.getConversation,
-    conversationId
-      ? { conversationId: conversationId as Id<"conversations"> }
-      : "skip",
+    conversationId ? { conversationId } : "skip"
   );
 
   const messages = useQuery(
     api.message.list,
-    conversationId ? { conversationId: conversationId as any } : "skip",
+    conversationId ? { conversationId: conversationId as any } : "skip"
   );
 
   useEffect(() => {
@@ -74,16 +72,24 @@ export default function ChatArea({ otherUserId }: { otherUserId: string }) {
   }, [currentUser, updatePresence]);
 
   useEffect(() => {
-    if (!currentUser || !otherUser) return;
+    if (!currentUser) return;
+
     const init = async () => {
-      const id = await getOrCreateConv({
-        currentUserId: currentUser._id,
-        otherUserId: otherUser._id,
-      });
-      setConversationId(id);
+      if (otherUserId.length > 20 && !otherUserId.startsWith("user_")) {
+          setConversationId(otherUserId as Id<"conversations">);
+          return;
+      }
+
+      if (otherUser) {
+        const id = await getOrCreateConv({
+          currentUserId: currentUser._id,
+          otherUserId: otherUser._id,
+        });
+        setConversationId(id as Id<"conversations">);
+      }
     };
     init();
-  }, [currentUser, otherUser, getOrCreateConv]);
+  }, [currentUser, otherUser, otherUserId, getOrCreateConv]);
 
   useEffect(() => {
     if (conversationId && currentUser) {
@@ -97,9 +103,7 @@ export default function ChatArea({ otherUserId }: { otherUserId: string }) {
   const handleScroll = () => {
     const container = scrollContainerRef.current;
     if (!container) return;
-    const isBottom =
-      container.scrollHeight - container.scrollTop <=
-      container.clientHeight + 100;
+    const isBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 100;
     setIsAtBottom(isBottom);
     if (isBottom) setShowNewMessageButton(false);
   };
@@ -110,20 +114,17 @@ export default function ChatArea({ otherUserId }: { otherUserId: string }) {
   };
 
   const isOtherUserTyping = () => {
-    if (!conversation || !otherUser) return false;
+    if (!conversation) return false;
     const typingMap = (conversation as any).typingIndicators || {};
-    const lastTyped = typingMap[otherUser._id] || 0;
-    return Date.now() - lastTyped < 3000;
+    return Object.entries(typingMap).some(([uid, lastTyped]) => 
+      uid !== currentUser?._id && Date.now() - (lastTyped as number) < 3000
+    );
   };
 
   useEffect(() => {
     const currentCount = messages?.length || 0;
     const hasNewMessageArrived = currentCount > prevMessageCountRef.current;
-
-    if (
-      isAtBottom ||
-      (hasNewMessageArrived && prevMessageCountRef.current === 0)
-    ) {
+    if (isAtBottom || (hasNewMessageArrived && prevMessageCountRef.current === 0)) {
       scrollToBottom();
     } else if (hasNewMessageArrived) {
       setShowNewMessageButton(true);
@@ -131,49 +132,20 @@ export default function ChatArea({ otherUserId }: { otherUserId: string }) {
     prevMessageCountRef.current = currentCount;
   }, [messages, isAtBottom]);
 
-  useEffect(() => {
-    if (isAtBottom && isOtherUserTyping()) {
-      scrollToBottom();
-    }
-  }, [conversation?.typingIndicators, isAtBottom]);
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewMessage(e.target.value);
     if (!currentUser || !conversationId) return;
-
-    setTyping({
-      conversationId: conversationId as any,
-      userId: currentUser._id,
-      isTyping: true,
-    });
-
+    setTyping({ conversationId: conversationId as any, userId: currentUser._id, isTyping: true });
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
-      setTyping({
-        conversationId: conversationId as any,
-        userId: currentUser._id,
-        isTyping: false,
-      });
+      setTyping({ conversationId: conversationId as any, userId: currentUser._id, isTyping: false });
     }, 2000);
   };
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !conversationId || !currentUser) return;
-
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    setTyping({
-      conversationId: conversationId as any,
-      userId: currentUser._id,
-      isTyping: false,
-    });
-
-    await sendMessage({
-      conversationId: conversationId as any,
-      senderId: currentUser._id,
-      content: newMessage,
-    });
-
+    await sendMessage({ conversationId: conversationId as any, senderId: currentUser._id, content: newMessage });
     setNewMessage("");
     setIsAtBottom(true);
     setTimeout(scrollToBottom, 50);
@@ -188,12 +160,8 @@ export default function ChatArea({ otherUserId }: { otherUserId: string }) {
         userId: currentUser._id,
       });
     } else if (msg.senderId === currentUser._id) {
-      const confirmed = window.confirm("Delete this message for everyone?");
-      if (confirmed) {
-        await deleteMessage({
-          messageId: msg._id,
-          userId: currentUser._id,
-        });
+      if (window.confirm("Delete this message?")) {
+        await deleteMessage({ messageId: msg._id, userId: currentUser._id });
       }
     }
   };
@@ -205,36 +173,44 @@ export default function ChatArea({ otherUserId }: { otherUserId: string }) {
     setShowFullPicker(false);
   };
 
-  if (!currentUser || !otherUser)
-    return <div className="p-4 font-black italic">Loading Tars Chat...</div>;
+  if (!currentUser || conversation === undefined) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-white">
+        <div className="p-4 font-black italic animate-pulse">
+          LOADING TARS CHAT...
+        </div>
+      </div>
+    );
+  }
 
   const getStatusText = () => {
-    if (!otherUser.lastSeen) return "Offline";
+    if (conversation?.isGroup) return "Group Chat";
+    if (!otherUser?.lastSeen) return "Offline";
     const isOnline = Date.now() - otherUser.lastSeen < 30000;
-    if (isOnline) return "Online";
-    return `Last seen ${new Date(otherUser.lastSeen).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+    return isOnline ? "Online" : `Last seen ${new Date(otherUser.lastSeen).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
   };
 
   return (
     <div className="flex flex-col h-screen bg-white relative">
-      <div className="border-b-2 border-black p-4 flex items-center gap-3 bg-zinc-50 z-10">
+      <div className="border-b-2 border-black p-4 flex items-center gap-3 bg-zinc-50 z-[10]">
         <div className="relative">
-          {otherUser.avatarUrl ? (
-            <img
-              src={otherUser.avatarUrl}
-              className="w-10 h-10 rounded-full border-2 border-black object-cover"
-              alt=""
-            />
+          {conversation?.isGroup ? (
+            <div className="w-10 h-10 rounded-full bg-[#ffcf00] border-2 border-black flex items-center justify-center">
+              <Users className="w-5 h-5 text-black" />
+            </div>
+          ) : otherUser?.avatarUrl ? (
+            <img src={otherUser.avatarUrl} className="w-10 h-10 rounded-full border-2 border-black object-cover" alt="Avatar" />
           ) : (
             <div className="w-10 h-10 rounded-full bg-zinc-200 border-2 border-black" />
           )}
-          {otherUser.lastSeen && Date.now() - otherUser.lastSeen < 1000 && (
+
+          {!conversation?.isGroup && otherUser?.lastSeen && Date.now() - otherUser.lastSeen < 30000 && (
             <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />
           )}
         </div>
         <div>
           <h2 className="font-black text-black leading-none">
-            {otherUser.name}
+            {conversation?.isGroup ? conversation.name || "Unnamed Group" : otherUser?.name || "Chatting..."}
           </h2>
           <p className="text-[10px] font-bold text-zinc-500 uppercase mt-1 tracking-wider">
             {getStatusText()}
@@ -246,7 +222,7 @@ export default function ChatArea({ otherUserId }: { otherUserId: string }) {
         scrollContainerRef={scrollContainerRef}
         messagesEndRef={messagesEndRef}
         handleScroll={handleScroll}
-        messages={messages}
+        messages={messages || []}
         currentUser={currentUser}
         activeEmojiMenu={activeEmojiMenu}
         setActiveEmojiMenu={setActiveEmojiMenu}
