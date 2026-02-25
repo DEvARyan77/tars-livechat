@@ -23,6 +23,10 @@ export const getOrCreateDirectConversation = mutation({
   },
 });
 
+export const generateUploadUrl = mutation(async (ctx) => {
+  return await ctx.storage.generateUploadUrl();
+});
+
 export const getUserConversations = query({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
@@ -145,6 +149,7 @@ export const createGroup = mutation({
     name: v.string(),
     participantIds: v.array(v.id("users")),
     adminId: v.id("users"),
+    groupImage: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("conversations", {
@@ -153,7 +158,16 @@ export const createGroup = mutation({
       participants: args.participantIds,
       admin: args.adminId,
       updatedAt: Date.now(),
+      groupImage: args.groupImage,
       lastSeen: { [args.adminId]: Date.now() },
     });
+  },
+});
+
+export const getGroupImageUrl = query({
+  args: { storageId: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    if (!args.storageId) return null;
+    return await ctx.storage.getUrl(args.storageId);
   },
 });

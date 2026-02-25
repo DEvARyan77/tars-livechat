@@ -22,6 +22,7 @@ export default defineSchema({
     updatedAt: v.number(),
     lastSeen: v.optional(v.record(v.string(), v.number())),
     typingIndicators: v.optional(v.record(v.string(), v.number())),
+    groupImage: v.optional(v.string()),
   }).index("by_participants", ["participants"]),
 
   recentSearches: defineTable({
