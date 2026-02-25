@@ -32,6 +32,8 @@ export default defineSchema({
     senderId: v.id("users"),
     content: v.string(),
     timestamp: v.number(),
-    deleted: v.boolean(),
+    deleted: v.optional(v.boolean()),
+    hiddenBy: v.optional(v.array(v.id("users"))),
+    reactions: v.optional(v.record(v.string(), v.array(v.id("users")))),
   }).index("by_conversation", ["conversationId"]),
 });

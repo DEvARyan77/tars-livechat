@@ -35,16 +35,39 @@ export const getUserConversations = query({
     return await Promise.all(
       userConvs.map(async (conv) => {
         const otherParticipantId = conv.participants.find(
-          (id: string) => id !== args.userId,
+          (id) => id !== args.userId,
         );
-        const otherUser = otherParticipantId
+
+        const otherUserDoc = otherParticipantId
           ? await ctx.db.get(otherParticipantId)
           : null;
-        const lastMessage = conv.lastMessageId
-          ? await ctx.db.get(conv.lastMessageId)
+        const otherUser = otherUserDoc
+          ? {
+              _id: otherUserDoc._id,
+              clerkId: otherUserDoc.clerkId,
+              name: otherUserDoc.name,
+              avatarUrl: otherUserDoc.avatarUrl,
+            }
           : null;
 
-        const lastSeenMap = conv.lastSeen || {};
+        const recentMessages = await ctx.db
+          .query("messages")
+          .withIndex("by_conversation", (q) => q.eq("conversationId", conv._id))
+          .order("desc")
+          .take(10);
+
+        const lastMessageDoc = recentMessages.find(
+          (msg) => !msg.hiddenBy?.includes(args.userId),
+        );
+
+        const lastMessage = lastMessageDoc
+          ? {
+              content: lastMessageDoc.content,
+              timestamp: lastMessageDoc.timestamp,
+              deleted: lastMessageDoc.deleted,
+            }
+          : null;
+        const lastSeenMap = (conv.lastSeen as Record<string, number>) || {};
         const myLastSeen = lastSeenMap[args.userId] || 0;
 
         const unreadMessages = await ctx.db
@@ -54,11 +77,14 @@ export const getUserConversations = query({
           .filter((q) => q.neq(q.field("senderId"), args.userId))
           .collect();
 
+        const unreadCount = unreadMessages.filter(
+          (msg) => !msg.hiddenBy?.includes(args.userId),
+        ).length;
         return {
           ...conv,
           otherUser,
           lastMessage,
-          unreadCount: unreadMessages.length,
+          unreadCount,
         };
       }),
     );
@@ -77,17 +103,17 @@ export const markAsRead = mutation({
 });
 
 export const updateTypingStatus = mutation({
-  args: { 
-    conversationId: v.id("conversations"), 
+  args: {
+    conversationId: v.id("conversations"),
     userId: v.id("users"),
-    isTyping: v.boolean() 
+    isTyping: v.boolean(),
   },
   handler: async (ctx, args) => {
     const conv = await ctx.db.get(args.conversationId);
     if (!conv) return;
 
     const typingIndicators = conv.typingIndicators || {};
-    
+
     if (args.isTyping) {
       typingIndicators[args.userId] = Date.now();
     } else {
